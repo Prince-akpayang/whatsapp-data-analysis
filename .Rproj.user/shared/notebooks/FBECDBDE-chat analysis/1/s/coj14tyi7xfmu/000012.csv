@@ -1,0 +1,56 @@
+"0",""
+"0","# rename our data frame for the rest of the study"
+"0","# require(""magrittr"");require(dplyr)"
+"0",""
+"0","whatsapp_data<-data.frame(wat.df) %>% filter(!is.na(author)) %>% select(-source) %>% glimpse()"
+"1","Rows: 1,544"
+"1",""
+"1","
+"
+"1","Columns: 5"
+"1",""
+"1","
+"
+"1","$ time       [3m[38;5;246m<dttm>[39m[23m 2021-07-10 13:01:31, 2021-07-10 18:29:31, 2021-07-10 19:47:31, 2021-07-10 19:48…
+$ author     [3m[38;5;246m<chr>[39m[23m ""Etini Akpayang"", ""jerry"", ""Etini Akpayang"", ""Etini Akpayang"", ""jerry"", ""jerry"",…
+$ text       [3m[38;5;246m<chr>[39m[23m ""Is SHE the one?"", ""Yes oo"", ""Congratulations bruh"", ""Put palmy"", ""Lol"", ""Bro na…
+$ emoji      [3m[38;5;246m<list>[39m[23m <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>,…
+$ emoji_name [3m[38;5;246m<list>[39m[23m <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>,…"
+"1",""
+"1","
+"
+"0","# split the data to individual authors"
+"0","whatsapp_data_jerry <- whatsapp_data %>% filter(author==""jerry"") %>% glimpse()"
+"1","Rows: 767"
+"1",""
+"1","
+"
+"1","Columns: 5"
+"1",""
+"1","
+"
+"1","$ time       [3m[38;5;246m<dttm>[39m[23m 2021-07-10 18:29:31, 2021-07-10 20:45:31, 2021-07-24 06:36:31, 2021-08-13 22:54…
+$ author     [3m[38;5;246m<chr>[39m[23m ""jerry"", ""jerry"", ""jerry"", ""jerry"", ""jerry"", ""jerry"", ""jerry"", ""jerry"", ""jerry"",…
+$ text       [3m[38;5;246m<chr>[39m[23m ""Yes oo"", ""Lol"", ""Bro na kebbi state oo"", ""10000 ways to die"", ""I de go berin ke…
+$ emoji      [3m[38;5;246m<list>[39m[23m <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>,…
+$ emoji_name [3m[38;5;246m<list>[39m[23m <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>,…"
+"1",""
+"1","
+"
+"0","whatsapp_data_Etini <- whatsapp_data %>% filter(author==""Etini Akpayang"") %>% glimpse()"
+"1","Rows: 777"
+"1",""
+"1","
+"
+"1","Columns: 5"
+"1",""
+"1","
+"
+"1","$ time       [3m[38;5;246m<dttm>[39m[23m 2021-07-10 13:01:31, 2021-07-10 19:47:31, 2021-07-10 19:48:31, 2021-07-24 10:30…
+$ author     [3m[38;5;246m<chr>[39m[23m ""Etini Akpayang"", ""Etini Akpayang"", ""Etini Akpayang"", ""Etini Akpayang"", ""Etini A…
+$ text       [3m[38;5;246m<chr>[39m[23m ""Is SHE the one?"", ""Congratulations bruh"", ""Put palmy"", ""Nice one bruh"", ""<Media…
+$ emoji      [3m[38;5;246m<list>[39m[23m <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>,…
+$ emoji_name [3m[38;5;246m<list>[39m[23m <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>,…"
+"1",""
+"1","
+"

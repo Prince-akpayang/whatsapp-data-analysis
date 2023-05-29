@@ -1,0 +1,6 @@
+"0","Top_20_most_used_sentiment_words<-sentiment_word %>% arrange(desc(Freq)) %>% head(20)"
+"0",""
+"0","ggplot(Top_20_most_used_sentiment_words,aes(x=reorder(word,Freq),y=Freq,fill=sentiment))+"
+"0","  geom_col()+xlab(""words"")+"
+"0","  coord_flip()+theme_bw()+ggtitle(""chart of the top sentimental words used by the users "")"
+"0",""

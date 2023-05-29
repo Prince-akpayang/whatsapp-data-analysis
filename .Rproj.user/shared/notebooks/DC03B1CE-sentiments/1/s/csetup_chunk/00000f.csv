@@ -1,0 +1,6 @@
+"0","knitr::opts_chunk$set(echo = F)"
+"0","knitr::opts_chunk$set(eval = T)"
+"0","knitr::opts_chunk$set(warning = F)"
+"0","knitr::opts_chunk$set(error = F)"
+"0","knitr::opts_chunk$set(cache = T)"
+"0","#setwd(""C:/Users/Etini Akpayang/Documents/CODE/ANALYSIS/sentiment folder/sentimentanals/"")"

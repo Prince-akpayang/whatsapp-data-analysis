@@ -1,0 +1,4 @@
+"0","summary(whatsapp_data %>% select(time,author,text))"
+"2","Error in whatsapp_data %>% select(time, author, text) : 
+  could not find function ""%>%""
+"

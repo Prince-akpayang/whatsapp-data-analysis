@@ -1,0 +1,7 @@
+"0",""
+"0",""
+"0","ggplot(emoji_data.E,aes(x=Var1.1,y=Freq.1))+"
+"0","  geom_col(aes(fill=Freq.1))+"
+"0","  coord_flip()+xlab(""emoji"")+ylab(""frequency of use"")+"
+"0","  ggtitle(""Etinis emoji usage"")"
+"0",""

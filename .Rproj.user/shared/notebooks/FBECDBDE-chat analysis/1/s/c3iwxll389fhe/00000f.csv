@@ -1,0 +1,20 @@
+"0","require(wordcloud);require(ggplot2)"
+"0","sentiment_word.j <- sentiment_table %>% select(author,word,sentiment) %>% filter(author==""jerry"")  %>%  table() %>% unlist() %>% data.frame() %>% glimpse()"
+"1","Rows: 344"
+"1",""
+"1","
+"
+"1","Columns: 4"
+"1",""
+"1","
+"
+"1","$ author    [3m[38;5;246m<fct>[39m[23m jerry, jerry, jerry, jerry, jerry, jerry, jerry, jerry, jerry, jerry, jerry, jerr…
+$ word      [3m[38;5;246m<fct>[39m[23m accurate, advantage, advocate, affluence, anger, appreciate, assurance, bad, barg…
+$ sentiment [3m[38;5;246m<fct>[39m[23m negative, negative, negative, negative, negative, negative, negative, negative, n…
+$ Freq      [3m[38;5;246m<int>[39m[23m 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 2, 0, 0, 0, 0, 0, 2, 1, 0, 1, 1, 1, 2, 0, 0, 1, …"
+"1",""
+"1","
+"
+"0","wordcloud(words = sentiment_word.j$word, freq = sentiment_word$Freq , min.freq = 1,"
+"0","          max.words = 100, random.order = FALSE, rot.per = 0.35, "
+"0","          colors = brewer.pal(8, ""Dark2""))"

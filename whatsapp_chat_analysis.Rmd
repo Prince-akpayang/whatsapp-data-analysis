@@ -1,0 +1,883 @@
+---
+title: "Family whatsapp group analysis"
+author: "Etini Akpayang"
+date: "2023-07-15"
+output:
+  html_document: 
+    toc: yes
+    keep_md: yes
+---
+
+```{r setup, include=T}
+knitr::opts_chunk$set(echo = F)
+knitr::opts_chunk$set(eval = T)
+knitr::opts_chunk$set(warning = F)
+knitr::opts_chunk$set(error = F)
+knitr::opts_chunk$set(cache = T)
+#setwd("C:/Users/Etini Akpayang/Documents/CODE/ANALYSIS/sentiment folder/sentimentanals/")
+```
+
+## Introduction
+
+This project is to showcase my skill in sentiment analysis, so i will be drawing insights from a family whatsapp group data. the following can be extected.
+
+-Data wrangling
+
+-Exploratory data analysis
+
+-Visualizations 
+
+-Analysis
+
+-Inferences
+
+
+## Loading required data and packages
+
+The following packages will be loaded for this study incase needed.
+
+```{r packages, echo=T,message=FALSE}
+
+library(rwhatsapp)
+library(ggplot2)
+library(lubridate)
+library(tidytext)
+library(stopwords)
+library(tidyverse)
+library(tidymodels)
+library(syuzhet)
+library(RColorBrewer)
+library(dplyr)
+library(stringr)
+library(igraph)
+library(tm)
+require(wordcloud)
+```
+
+
+This packages individually have their role to play assuming we’d need them, cause a few of them can do simultaneously what another can, so learning and expertly understanding just one or a few maybe enough, we will give a brief run of its significance.
+
+
+### packages and uses
+
+|   Package  |use/importance|
+|------------|--------------|
+|rwhatsapp	 |rwhatsapp provides some infrastructure to work with WhatsApp text data in R. It is a small and robust package.             |
+|ggplot2|	It is a popular package which is used for building Plots and effective Visualizations.|
+|lubridate|	This package is used for Lubricating the use of Dates and Times in any Analysis.|
+|wordcloud	 | Used in building the wordcloud.|
+|tidytext	   | Makes the text mining process easier and consistent.|
+|topwords	   | For inclusion of Stopwords.|
+|tidyverse	 | It is a collection of the few packages in R, so the packages get self-included on including tidyverse.                  |
+|tidymodels|	Forms the basis of tidy machine learning.|
+|syuzhet	   | Extracts the sentiment and sentiment-derived plot arcs from text using a variety of sentiment dictionaries.               |
+|dplyr| Provides efficient set of tools for data manipulation and transformation.|
+|stringr| offers loads of tools for string manipulation and text processing.|
+|igraph| a powerful package for analysing and visualizing network data.|
+|tm|specifically designed for text mining|
+
+
+### Data
+
+Its time to load the data downloaded from the whatsapp.
+
+
+```{r whatsapp data, message=F} 
+# Reading the data with the aid of the rwhatsapp package reduces the amount of wrangling we'd need to do.
+
+require("magrittr")
+
+wat.df<- rwhatsapp::rwa_read("C:/Users/Etini Akpayang/Documents/CODE/ANALYSIS/sentiment folder/sentimentanals/WhatsApp_Chat.txt") 
+
+
+# function to clean the unknown characters in any column due to error i had viewing my data some data translation of the characters in the author column by the name was not interpretable a Nigerian flag icon in particular
+
+clean_text_column<-function(column){
+  cleaned_column<-gsub("[^[:alpha:][:space:]]"," ",column)
+  cleaned_column<-gsub("\\s+"," ",cleaned_column)
+  cleaned_column<-trimws(cleaned_column)
+  return(cleaned_column)
+}
+colnames(wat.df)
+
+# using the function created above to clean any character other than text in the author column.
+
+ wat.df$author<-clean_text_column(wat.df$author)
+
+# get the structure of our data frame
+
+glimpse(wat.df)
+
+# View the first and last 10 observations in our data frame
+head(wat.df);tail(wat.df);
+
+# rename our data frame for the rest of the study
+whatsapp_data<-data.frame(wat.df)
+```
+## Summary of the data
+
+We can summarize the important features of the data as the emojis are in a list format so a summary will not be appropriate enough hence later on we'd look into those indeptly.
+
+```{r data summary}
+summary(whatsapp_data %>% select(time,author,text))
+
+```
+From the summary we see that tthe data ranges from 4th December, 2022 to 17th May, 2023.
+
+##  Message Count Analysis:
+Here we will visualize the total messages sent by the users in the group chat. 
+
+```{r Message Count Analysis}
+
+# Count the number of messages sent by each family author
+message_counts <- whatsapp_data %>% filter(!is.na(author)) %>% 
+  group_by(author) %>%
+  summarise(Message_Count = n())
+
+message_counts <- message_counts %>% 
+  arrange(desc(Message_Count)) 
+  
+ggplot(message_counts,aes(x = reorder(author,(Message_Count)),y = Message_Count))+
+  geom_col(aes(fill=author))+
+  coord_flip() +xlab("author")+
+  ggtitle("The number of word count used by each user")
+
+  # theme(axis.text.x = element_text(angle = 90,vjust = 0.5))
+
+# View the message count for each family author
+print(message_counts)
+```
+
+<!-- ## Density plot for the times users made a post in the group chat -->
+
+<!-- ```{r Message_Count density plot} -->
+<!-- ggplot(whatsapp_data,aes(y=author,color=author))+ -->
+<!--   geom_density()+ -->
+<!--   facet_wrap(~author)+ -->
+<!--   theme(axis.text.x = element_text(angle = 90,vjust = 0.5)) -->
+<!-- ``` -->
+
+
+##  Word Frequency Analysis:
+
+This section we will visualize the words we use and our focus will be on the most frequently used one.
+```{r word count1}
+# Remove unwanted characters from the text column
+whatsapp_data$text <- gsub("[[:punct:]]", "", whatsapp_data$text)
+whatsapp_data$text <- gsub("[[:digit:]]", "", whatsapp_data$text)
+whatsapp_data$text <- gsub("[[:cntrl:]]", "", whatsapp_data$text)
+whatsapp_data$text <- gsub("^[[:space:]]+|[[:space:]]+$", "", whatsapp_data$text)
+whatsapp_data$text <- tolower(whatsapp_data$text)
+
+whatsapp_data <- whatsapp_data %>% filter(!str_detect(text,"media omitted")) %>%
+  filter(!str_detect(text,"you deleted this message")) %>% 
+  filter(!str_detect(text,"this message was deleted"))
+
+whatsapp_data_words <- str_split(whatsapp_data$text,"\\s+") %>%
+                            unlist() %>%
+                            table() %>% 
+                            sort(decreasing = T) %>% 
+                            data.frame() %>% 
+                            glimpse()
+colnames(whatsapp_data_words)<-c("words","Freq")
+
+```
+
+
+From the data above there have been 3,115 distinct word used in this group till the date the data was collected lets view the top 50,
+
+```{r top 50 words}
+whatsapp_data_words<-whatsapp_data_words %>% arrange(desc(Freq)) %>% head(50)
+whatsapp_data_words
+```
+
+we can still use a bar plot to see this 
+
+```{r top 50 words used plot}
+
+p<-theme(axis.text.y = element_text(size = 7))
+  
+ggplot(whatsapp_data_words,aes(x = reorder(words,desc(Freq)),y = Freq,fill=Freq))+
+  geom_col()+xlab(label = "words")+coord_flip()+ggtitle("50 Frequently used words in the family whatsapp group")+p
+
+```
+
+
+we can still visualize this words by individuals too to know each individuals most used words, first we modify the data by individuals
+
+```{r individuals word data}
+unique(whatsapp_data$author)
+
+Nsikan_Family.df <- whatsapp_data %>% filter(author=="Nsikan Family") %>% glimpse()
+Mfonakem_New.df <- whatsapp_data %>% filter(author=="Mfonakem New") %>% glimpse()
+Etini_Akpayang.df <- whatsapp_data %>% filter(author=="Etini Akpayang") %>% glimpse()
+Mrs_Akpayang_Mum.df <- whatsapp_data %>% filter(author=="Mrs Akpayang Mum") %>% glimpse()
+dad.df <- whatsapp_data %>% filter(author=="dad") %>% glimpse()
+Diana.df <- whatsapp_data %>% filter(author=="Diana") %>% glimpse()
+Lady_Diana.df <- whatsapp_data %>% filter(author=="Lady Diana") %>% glimpse()
+Dad.df  <- whatsapp_data %>% filter(author=="Dad") %>% glimpse()
+
+```
+
+
+The next task is to clean out the words from the individual chats
+
+```{r words for individuals }
+
+Nsikan_Family_words <- str_split(Nsikan_Family.df$text,"\\s+") %>%
+                            unlist() %>%
+                            table() %>% 
+                            sort(decreasing = T) %>% 
+                            data.frame() %>% 
+                            arrange() %>% 
+                            glimpse()
+colnames(Nsikan_Family_words)<-c("words","Freq")
+
+Mfonakem_New_words <- str_split(Mfonakem_New.df$text,"\\s+") %>%
+                            unlist() %>%
+                            table() %>% 
+                            sort(decreasing = T) %>% 
+                            data.frame() %>% 
+                            arrange() %>%
+                            glimpse()
+colnames(Mfonakem_New_words)<-c("words","Freq")
+
+ 
+Etini_Akpayang_words <- str_split(Etini_Akpayang.df$text,"\\s+") %>%
+                            unlist() %>%
+                            table() %>% 
+                            sort(decreasing = T) %>% 
+                            data.frame() %>% 
+                            arrange() %>%
+                            glimpse()
+colnames(Etini_Akpayang_words)<-c("words","Freq")
+
+
+Mrs_Akpayang_Mum_words <- str_split(Mrs_Akpayang_Mum.df$text,"\\s+") %>%
+                            unlist() %>%
+                            table() %>% 
+                            sort(decreasing = T) %>% 
+                            data.frame() %>% 
+                            arrange() %>%
+                            glimpse()
+colnames(Mrs_Akpayang_Mum_words)<-c("words","Freq")
+
+ 
+dad_words <- str_split(dad.df$text,"\\s+") %>%
+                            unlist() %>%
+                            table() %>% 
+                            sort(decreasing = T) %>% 
+                            data.frame() %>% 
+                            arrange() %>%
+                            glimpse()
+colnames(dad_words)<-c("words","Freq")
+
+ 
+Diana_words <- str_split(Diana.df$text,"\\s+") %>%
+                            unlist() %>%
+                            table() %>% 
+                            sort(decreasing = T) %>% 
+                            data.frame() %>% 
+                            arrange() %>%
+                            glimpse()
+colnames(Diana_words)<-c("words","Freq")
+
+
+Lady_Diana_words <- str_split(Lady_Diana.df$text,"\\s+") %>%
+                            unlist() %>%
+                            table() %>% 
+                            sort(decreasing = T) %>% 
+                            data.frame() %>% 
+                            arrange() %>%
+                            glimpse()
+colnames(Lady_Diana_words)<-c("words","Freq")
+
+  
+Dad_words <- str_split(Dad.df$text,"\\s+") %>%
+                            unlist() %>%
+                            table() %>% 
+                            sort(decreasing = T) %>% 
+                            data.frame() %>% 
+                            arrange() %>%
+                            glimpse()
+colnames(Dad_words)<-c("words","Freq")
+
+```
+
+
+we can go on to plot the top 20 words mostly used bu members in this group;
+
+```{r top 20 words used by each membeers plotted}
+p<-theme(axis.text.y = element_text(size = 7))
+  
+ggplot(Nsikan_Family_words,aes(x = reorder(words,desc(Freq)),y = Freq,fill=Freq))+
+  geom_col()+xlab(label = "words")+coord_flip()+ggtitle("20 Frequently used words in the family whatsapp group by Nsikan")+p
+
+ggplot(Mfonakem_New_words,aes(x = reorder(words,desc(Freq)),y = Freq,fill=Freq))+
+  geom_col()+xlab(label = "words")+coord_flip()+ggtitle("20 Frequently used words in the family whatsapp group by Mfonakem")+p
+
+ggplot(Etini_Akpayang_words,aes(x = reorder(words,desc(Freq)),y = Freq,fill=Freq))+
+  geom_col()+xlab(label = "words")+coord_flip()+ggtitle("20 Frequently used words in the family whatsapp group by Etini")+p
+
+ggplot(Diana_words,aes(x = reorder(words,desc(Freq)),y = Freq,fill=Freq))+
+  geom_col()+xlab(label = "words")+coord_flip()+ggtitle("20 Frequently used words in the family whatsapp group by Diana line 1")+p
+
+ggplot(Lady_Diana_words,aes(x = reorder(words,desc(Freq)),y = Freq,fill=Freq))+
+  geom_col()+xlab(label = "words")+coord_flip()+ggtitle("20 Frequently used words in the family whatsapp group by Diana line 2")+p
+
+ggplot(dad_words,aes(x = reorder(words,desc(Freq)),y = Freq,fill=Freq))+
+  geom_col()+xlab(label = "words")+coord_flip()+ggtitle("20 Frequently used words in the family whatsapp group by Dad line 1")+p
+
+ggplot(Dad_words,aes(x = reorder(words,desc(Freq)),y = Freq,fill=Freq))+
+  geom_col()+xlab(label = "words")+coord_flip()+ggtitle("20 Frequently used words in the family whatsapp group by Dad line 2")+p
+
+ggplot(Mrs_Akpayang_Mum_words,aes(x = reorder(words,desc(Freq)),y = Freq,fill=Freq))+
+  geom_col()+xlab(label = "words")+coord_flip()+ggtitle("20 Frequently used words in the family whatsapp group by Mum")+p
+```
+
+
+
+##  Sentiment Analysis:
+This has to do with the general theme of the message delivered, it can be grouped in different contexts such as angry, happy, negative or positive but in this project we will only consider positive and negative tones.
+
+Sentiment analysis, in simple terms, is the process of determining the emotional tone or attitude behind a piece of text or spoken words. It involves using computer algorithms to analyze and understand whether the expressed sentiment is positive, negative, or neutral. By examining the language and context, sentiment analysis can help identify the overall sentiment of a given text, such as a social media post, customer review, or news article.
+
+
+```{r Sentiment Analysis for the whole group}
+require(ggplot2);require(tidytext);require(dplyr)
+
+# Load the sentiment lexicon (e.g., 'bing' lexicon)
+lexicon <- get_sentiments("bing")
+
+# Perform sentiment analysis on the WhatsApp messages
+sentiment_table <- whatsapp_data %>%
+  unnest_tokens(word, text) %>%
+  inner_join(lexicon) %>% glimpse()
+sentiment_table$sentiment<-as.factor(sentiment_table$sentiment) %>% glimpse()
+
+sentiment_scores <- sentiment_table %>% select(author,sentiment) %>% table() %>% unlist() %>% data.frame() %>% glimpse()
+
+
+ggplot(data=sentiment_scores,aes(x=reorder(author,Freq),y=Freq,fill=sentiment))+
+  geom_col(position = "dodge")+
+  facet_wrap(~sentiment)+
+  coord_flip()
+  # theme(axis.text.x = element_text(angle = 90,vjust = 0.5))
+
+
+# View the sentiment scores for each family author
+print(sentiment_scores)
+
+```
+Not the interpretation is based on bing dictionary that sees some words as negative/positive and automatically classify based on this as it was taught.
+
+So the context may not be too negative but it is classified thus thats why more than too classifications can be better at explaining context or sentiment behind a text.
+
+
+```{r Top 20 sentiment words}
+
+sentiment_word <- sentiment_table %>% select(author,word,sentiment)  %>%  table() %>% unlist() %>% data.frame() %>% glimpse()
+
+
+Top_20_most_used_sentiment_words<-sentiment_word %>% arrange(desc(Freq)) %>% head(20)
+
+ggplot(Top_20_most_used_sentiment_words,aes(x=reorder(word,Freq),Freq,fill=author,color=sentiment))+
+  geom_col(position = "dodge")+xlab("words")+
+  coord_flip()+theme_bw()+ggtitle("chart of the top 20 sentimental words used by individual group members ")
+```
+
+
+## Time Series Analysis:
+Time series is always about observation with respect to time we can view our observations as a group with respect to time.
+
+
+```{r Time series analysis}
+require(lubridate)
+
+# Convert the timestamp column to POSIXct format
+whatsapp_data$Timestamp <- ymd_hms(whatsapp_data$time)
+
+# Create a time series plot of message counts over time
+message_counts <- whatsapp_data %>%
+  group_by(Date = date(ymd_hms(Timestamp))) %>%
+  summarise(Message_Count = n())
+
+plot(message_counts$Date, message_counts$Message_Count, type = "l", xlab = "Date", ylab = "Message Count", main = ("Time series plot showing the frequency of chats by date"))
+
+```
+
+
+And individually too;
+
+```{r individual TS plots}
+
+# Convert the timestamp column to POSIXct format
+Nsikan_Family.df$Timestamp <- ymd_hms(Nsikan_Family.df$time)
+Mfonakem_New.df$Timestamp <- ymd_hms(Mfonakem_New.df$time)
+Etini_Akpayang.df$Timestamp <- ymd_hms(Etini_Akpayang.df$time)
+Diana.df$Timestamp <- ymd_hms(Diana.df$time)
+Lady_Diana.df$Timestamp <- ymd_hms(Lady_Diana.df$time)
+dad.df$Timestamp <- ymd_hms(dad.df$time)
+Dad.df$Timestamp <- ymd_hms(Dad.df$time)
+Mrs_Akpayang_Mum.df$Timestamp <- ymd_hms(Mrs_Akpayang_Mum.df$time)
+
+
+# Create a time series plot of message counts over time
+message_counts.n <- Nsikan_Family.df %>%
+  group_by(Date = date(ymd_hms(Timestamp))) %>%
+  summarise(Message_Count = n())
+message_counts.m <- Mfonakem_New.df %>%
+  group_by(Date = date(ymd_hms(Timestamp))) %>%
+  summarise(Message_Count = n())
+message_counts.e <- Etini_Akpayang.df %>%
+  group_by(Date = date(ymd_hms(Timestamp))) %>%
+  summarise(Message_Count = n())
+message_counts.di1 <- Diana.df %>%
+  group_by(Date = date(ymd_hms(Timestamp))) %>%
+  summarise(Message_Count = n())
+message_counts.di2 <- Lady_Diana.df %>%
+  group_by(Date = date(ymd_hms(Timestamp))) %>%
+  summarise(Message_Count = n())
+message_counts.d1 <- dad.df %>%
+  group_by(Date = date(ymd_hms(Timestamp))) %>%
+  summarise(Message_Count = n())
+message_counts.d2 <- Dad.df %>%
+  group_by(Date = date(ymd_hms(Timestamp))) %>%
+  summarise(Message_Count = n())
+message_counts.mu <- Mrs_Akpayang_Mum.df %>%
+  group_by(Date = date(ymd_hms(Timestamp))) %>%
+  summarise(Message_Count = n())
+
+
+plot(message_counts.n$Date, message_counts.n$Message_Count, type = "l", xlab = "Date", ylab = "Message Count",main = ("Time series plot showing the frequency of Nsikan chats in the group by date"), cex.main = 1)
+plot(message_counts.m$Date, message_counts.m$Message_Count, type = "l", xlab = "Date", ylab = "Message Count",main = ("Time series plot showing the frequency of Mfonakem chats in the group by date"), cex.main = 1)
+plot(message_counts.e$Date, message_counts.e$Message_Count, type = "l", xlab = "Date", ylab = "Message Count",main = ("Time series plot showing the frequency of Etini chats in the group by date"), cex.main = 1)
+plot(message_counts.di1$Date, message_counts.di1$Message_Count, type = "l", xlab = "Date", ylab = "Message Count",main = ("Time series plot showing the frequency of Diana line 1 chats in the group by date"), cex.main = 1)
+plot(message_counts.di2$Date, message_counts.di2$Message_Count, type = "l", xlab = "Date", ylab = "Message Count",main = ("Time series plot showing the frequency of Diana line 2 chats in the group by date"), cex.main = 1)
+plot(message_counts.d1$Date, message_counts.d1$Message_Count, type = "l", xlab = "Date", ylab = "Message Count",main = ("Time series plot showing the frequency of Dad line 1 chats in the group by date"), cex.main = 1)
+plot(message_counts.d2$Date, message_counts.d2$Message_Count, type = "l", xlab = "Date", ylab = "Message Count",main = ("Time series plot showing the frequency of Dad line 2 chats in the group by date"), cex.main = 1)
+plot(message_counts.mu$Date, message_counts.mu$Message_Count, type = "l", xlab = "Date", ylab = "Message Count",main = ("Time series plot showing the frequency of Mum chats in the group by date"), cex.main = 1)
+```
+
+
+Models could be fitted using this data to predict future message counts per day, but since it is not large may not predict accurately.
+
+
+## Emoji Analysis:
+This project will not be complete without our most favourite option analysis **"The Emoji"**
+
+Lets see the most frequently used emojis by us;
+
+and who uses which most emojis and their favorite go to emoji.
+
+```{r emoji general analysis,echo = F}
+# General analysis
+# Extract emojis from the WhatsApp messages
+emojis <- whatsapp_data$emoji
+
+emojis_name <-whatsapp_data$emoji_name
+
+# Count the frequency of each emoji
+emoji_counts <- table(unlist(emojis))
+emojis_name_counts <-table(unlist(emojis_name))
+
+# Sort the emojis by frequency in descending order
+sorted_counts <- sort(emoji_counts, decreasing = TRUE)
+sorted_counts_n <- sort(emojis_name_counts, decreasing = TRUE)
+
+# View the top 10 most frequent emojis
+top_10_emojis <- head(sorted_counts,nrow(sorted_counts))
+print(top_10_emojis)
+top_10_emojis_name <- head(sorted_counts_n,nrow(sorted_counts_n))
+print(top_10_emojis_name)
+
+
+emoji_data_top_10 <-data.frame(top_10_emojis,top_10_emojis_name)
+
+emoji_data <-emoji_data_top_10
+
+ggplot(emoji_data,aes(x=Var1.1,y=Freq.1))+
+  geom_col(aes(fill=Freq.1))+
+  coord_flip()+xlab("emoji")+ylab("frequency of use")
+
+```
+
+
+On a less general note, now lets go individually, Oh!!!!;
+```{r emoji personal analysis, echo = F}
+# Personal analysis
+whatsapp_data_nsi <- whatsapp_data %>% filter(author=="Nsikan Family") %>% glimpse()
+whatsapp_data_mfon <- whatsapp_data %>% filter(author=="Mfonakem New") %>% glimpse()
+whatsapp_data_eti <- whatsapp_data %>% filter(author=="Etini Akpayang") %>% glimpse()
+whatsapp_data_di1 <- whatsapp_data %>% filter(author=="Diana") %>% glimpse()
+whatsapp_data_di2 <- whatsapp_data %>% filter(author=="Lady Diana") %>% glimpse()
+whatsapp_data_dad1 <- whatsapp_data %>% filter(author=="dad") %>% glimpse()
+whatsapp_data_dad2 <- whatsapp_data %>% filter(author=="Dad") %>% glimpse()
+whatsapp_data_mum <- whatsapp_data %>% filter(author=="Mrs Akpayang Mum") %>% glimpse()
+
+emojis.1 <- whatsapp_data_nsi$emoji
+emojis.2 <- whatsapp_data_mfon$emoji
+emojis.3 <- whatsapp_data_eti$emoji
+emojis.4 <- whatsapp_data_di1$emoji
+emojis.5 <- whatsapp_data_di2$emoji
+emojis.6 <- whatsapp_data_dad1$emoji
+emojis.7 <- whatsapp_data_dad2$emoji
+emojis.8 <- whatsapp_data_mum$emoji
+
+emojis.1_name <-whatsapp_data_nsi$emoji_name
+emojis.2_name <-whatsapp_data_mfon$emoji_name
+emojis.3_name <- whatsapp_data_eti$emoji_name
+emojis.4_name <- whatsapp_data_di1$emoji_name
+emojis.5_name <- whatsapp_data_di2$emoji_name
+emojis.6_name <- whatsapp_data_dad1$emoji_name
+emojis.7_name <- whatsapp_data_dad2$emoji_name
+emojis.8_name <- whatsapp_data_mum$emoji_name
+
+# Count the frequency of each emoji
+emoji.1_counts <- table(unlist(emojis.1))
+emoji.2_counts <- table(unlist(emojis.2))
+emoji.3_counts <- table(unlist(emojis.3))
+emoji.4_counts <- table(unlist(emojis.4))
+emoji.5_counts <- table(unlist(emojis.5))
+emoji.6_counts <- table(unlist(emojis.6))
+emoji.7_counts <- table(unlist(emojis.7))
+emoji.8_counts <- table(unlist(emojis.8))
+
+
+
+emojis_name.1_counts <-table(unlist(emojis.1_name))
+emojis_name.2_counts <-table(unlist(emojis.2_name))
+emojis_name.3_counts <-table(unlist(emojis.3_name))
+emojis_name.4_counts <-table(unlist(emojis.4_name))
+emojis_name.5_counts <-table(unlist(emojis.5_name))
+emojis_name.6_counts <-table(unlist(emojis.6_name))
+emojis_name.7_counts <-table(unlist(emojis.7_name))
+emojis_name.8_counts <-table(unlist(emojis.8_name))
+
+# Sort the emojis by frequency in descending order
+sorted_counts.1 <- sort(emoji.1_counts, decreasing = TRUE)
+sorted_counts_n.1 <- sort(emojis_name.1_counts, decreasing = TRUE)
+
+sorted_counts.2 <- sort(emoji.2_counts, decreasing = TRUE)
+sorted_counts_n.2 <- sort(emojis_name.2_counts, decreasing = TRUE)
+
+sorted_counts.3 <- sort(emoji.3_counts, decreasing = TRUE)
+sorted_counts_n.3 <- sort(emojis_name.3_counts, decreasing = TRUE)
+
+sorted_counts.4 <- sort(emoji.4_counts, decreasing = TRUE)
+sorted_counts_n.4 <- sort(emojis_name.4_counts, decreasing = TRUE)
+
+sorted_counts.5 <- sort(emoji.5_counts, decreasing = TRUE)
+sorted_counts_n.5 <- sort(emojis_name.5_counts, decreasing = TRUE)
+
+sorted_counts.6 <- sort(emoji.6_counts, decreasing = TRUE)
+sorted_counts_n.6 <- sort(emojis_name.6_counts, decreasing = TRUE)
+
+sorted_counts.7 <- sort(emoji.7_counts, decreasing = TRUE)
+sorted_counts_n.7 <- sort(emojis_name.7_counts, decreasing = TRUE)
+
+sorted_counts.8 <- sort(emoji.8_counts, decreasing = TRUE)
+sorted_counts_n.8 <- sort(emojis_name.8_counts, decreasing = TRUE)
+
+# View the top 10 most frequent emojis
+top_10_emojis.1 <- head(sorted_counts.1,nrow(sorted_counts.1))
+print(top_10_emojis.1)
+top_10_emojis_name.1 <- head(sorted_counts_n.1,nrow(sorted_counts_n.1))
+print(top_10_emojis_name.1)
+
+top_10_emojis.2 <- head(sorted_counts.2,nrow(sorted_counts_n.2))
+print(top_10_emojis.2)
+top_10_emojis_name.2 <- head(sorted_counts_n.2,nrow(sorted_counts_n.2))
+print(top_10_emojis_name.2)
+
+top_10_emojis.3 <- head(sorted_counts.3,nrow(sorted_counts.3))
+print(top_10_emojis.3)
+top_10_emojis_name.3 <- head(sorted_counts_n.3,nrow(sorted_counts_n.3))
+print(top_10_emojis_name.3)
+
+top_10_emojis.4 <- head(sorted_counts.4,nrow(sorted_counts_n.4))
+print(top_10_emojis.4)
+top_10_emojis_name.4 <- head(sorted_counts_n.4,nrow(sorted_counts_n.4))
+print(top_10_emojis_name.4)
+
+# top_10_emojis.5 <- head(sorted_counts.5,nrow(sorted_counts.5))
+# print(top_10_emojis.5)
+# 
+# top_10_emojis_name.5 <- head(sorted_counts_n.5,nrow(sorted_counts_n.5))
+# print(top_10_emojis_name.5)
+
+top_10_emojis.6 <- head(sorted_counts.6,nrow(sorted_counts_n.6))
+print(top_10_emojis.6)
+top_10_emojis_name.6 <- head(sorted_counts_n.6,nrow(sorted_counts_n.6))
+print(top_10_emojis_name.6)
+
+# top_10_emojis.7 <- head(sorted_counts.7,nrow(sorted_counts.7))
+# print(top_10_emojis.7)
+# top_10_emojis_name.7 <- head(sorted_counts_n.7,nrow(sorted_counts_n.7))
+# print(top_10_emojis_name.7)
+
+top_10_emojis.8 <- head(sorted_counts.8,nrow(sorted_counts_n.8))
+print(top_10_emojis.8)
+top_10_emojis_name.8 <- head(sorted_counts_n.8,nrow(sorted_counts_n.8))
+print(top_10_emojis_name.8)
+
+emoji_data_top_10.1 <-data.frame(top_10_emojis.1,top_10_emojis_name.1)
+emoji_data_top_10.2 <-data.frame(top_10_emojis.2,top_10_emojis_name.2)
+emoji_data_top_10.3 <-data.frame(top_10_emojis.3,top_10_emojis_name.3)
+emoji_data_top_10.4 <-data.frame(top_10_emojis.4,top_10_emojis_name.4)
+# emoji_data_top_10.5 <-data.frame(top_10_emojis.5,top_10_emojis_name.5)
+emoji_data_top_10.6 <-data.frame(top_10_emojis.6,top_10_emojis_name.6)
+# emoji_data_top_10.7 <-data.frame(top_10_emojis.7,top_10_emojis_name.7)
+emoji_data_top_10.8 <-data.frame(top_10_emojis.8,top_10_emojis_name.8)
+
+
+emoji_data.1 <-emoji_data_top_10.1
+emoji_data.2 <-emoji_data_top_10.2
+emoji_data.3 <-emoji_data_top_10.3
+emoji_data.4 <-emoji_data_top_10.4
+# emoji_data.5 <-emoji_data_top_10.5
+emoji_data.6 <-emoji_data_top_10.6
+# emoji_data.7 <-emoji_data_top_10.7
+emoji_data.8 <-emoji_data_top_10.8
+
+ggplot(emoji_data.1,aes(x=Var1.1,y=Freq.1))+
+  geom_col(aes(fill=Freq.1))+
+  coord_flip()+xlab("emoji")+ylab("frequency of use")+
+  ggtitle("Nsikan emoji usage")
+
+
+ggplot(emoji_data.2,aes(x=Var1.1,y=Freq.1))+
+  geom_col(aes(fill=Freq.1))+
+  coord_flip()+xlab("emoji")+ylab("frequency of use")+
+  ggtitle("Mfonakem emoji usage")
+
+ggplot(emoji_data.3,aes(x=Var1.1,y=Freq.1))+
+  geom_col(aes(fill=Freq.1))+
+  coord_flip()+xlab("emoji")+ylab("frequency of use")+
+  ggtitle("Etini emoji usage")
+
+
+ggplot(emoji_data.4,aes(x=Var1.1,y=Freq.1))+
+  geom_col(aes(fill=Freq.1))+
+  coord_flip()+xlab("emoji")+ylab("frequency of use")+
+  ggtitle("Diana line 1 emoji usage")
+
+# ggplot(emoji_data.5,aes(x=Var1.1,y=Freq.1))+
+#   geom_col(aes(fill=Freq.1))+
+#   coord_flip()+xlab("emoji")+ylab("frequency of use")+
+#   ggtitle("Diana line 2 emoji usage")
+
+
+ggplot(emoji_data.6,aes(x=Var1.1,y=Freq.1))+
+  geom_col(aes(fill=Freq.1))+
+  coord_flip()+xlab("emoji")+ylab("frequency of use")+
+  ggtitle("Dad line 1 emoji usage")
+
+# ggplot(emoji_data.7,aes(x=Var1.1,y=Freq.1))+
+#   geom_col(aes(fill=Freq.1))+
+#   coord_flip()+xlab("emoji")+ylab("frequency of use")+
+#   ggtitle("Dad line 2 emoji usage")
+
+
+ggplot(emoji_data.8,aes(x=Var1.1,y=Freq.1))+
+  geom_col(aes(fill=Freq.1))+
+  coord_flip()+xlab("emoji")+ylab("frequency of use")+
+  ggtitle("Mum emoji usage")
+
+```
+
+So from the analysis so far we have seen two group members have two whatsapp line they use in chattin and Dads line 2 and Dianas line 2 has not used emojis yet up to the time this data was collected.
+
+
+## Create a word cloud
+Yes, the last visuals we will consider in this project is the word cloud.
+
+We saw the most words most likely to be used and used in the group in table and bar plot but this another beautiful representation that from mere looking you get the most used word.
+
+We will do this for the words and the words classifed under the sentiment analysis too.
+
+```{r word cloud for favourite words1,fig.cap="Word cloud showing most frequently used words in the group chat by all users"}
+
+wordcloud(words = whatsapp_data_words$words, freq = whatsapp_data_words$Freq , min.freq = 1,
+          max.words = Inf, random.order = FALSE, rot.per = 0.35, 
+          colors = brewer.pal(8, "Dark2"))
+```
+
+
+
+### How about individuals favourite words used;
+
+```{r word cloud for favourite words2, fig.cap="Top words used most by Nsikan in the chat"}
+
+wordcloud(words = Nsikan_Family_words$words , freq = Nsikan_Family_words$Freq , min.freq = 1,
+          max.words = Inf, random.order = FALSE, rot.per = 0.35, 
+          colors = brewer.pal(8, "Dark2"))
+```
+
+
+```{r word cloud for favourite words3, fig.cap="Top words used most by Mfonakem in the chat"}
+
+wordcloud(words = Mfonakem_New_words$words , freq = Mfonakem_New_words$Freq , min.freq = 1,
+          max.words = Inf, random.order = FALSE, rot.per = 0.35, 
+          colors = brewer.pal(8, "Dark2"))
+```
+
+```{r word cloud for favourite words4, fig.cap="Top words used most by Etini in the chat"}
+
+wordcloud(words =Etini_Akpayang_words $words , freq = Etini_Akpayang_words$Freq , min.freq = 1,
+          max.words = Inf, random.order = FALSE, rot.per = 0.35, 
+          colors = brewer.pal(8, "Dark2"))
+```
+
+```{r word cloud for favourite words5, fig.cap="Top words used most by Diana line 1 in the chat"}
+
+wordcloud(words = Diana_words$words , freq = Diana_words$Freq , min.freq = 1,
+          max.words = Inf, random.order = FALSE, rot.per = 0.35, 
+          colors = brewer.pal(8, "Dark2"))
+```
+
+
+```{r word cloud for favourite words6, fig.cap="Top words used most by Diana line 2 in the chat"}
+
+wordcloud(words = Lady_Diana_words$words , freq = Lady_Diana_words$Freq , min.freq = 1,
+          max.words = Inf, random.order = FALSE, rot.per = 0.35, 
+          colors = brewer.pal(8, "Dark2"))
+```
+
+
+```{r word cloud for favourite words7, fig.cap="Top words used most by Dad line 1 in the chat"}
+
+wordcloud(words = dad_words$words , freq = dad_words$Freq , min.freq = 1,
+          max.words = Inf, random.order = FALSE, rot.per = 0.35, 
+          colors = brewer.pal(8, "Dark2"))
+```
+
+
+```{r word cloud for favourite words8, fig.cap="Top words used most by Dad line 2 in the chat"}
+
+wordcloud(words = Dad_words$words , freq = Dad_words$Freq , min.freq = 1,
+          max.words = Inf, random.order = FALSE, rot.per = 0.35, 
+          colors = brewer.pal(8, "Dark2"))
+```
+
+
+```{r word cloud for favourite words9, fig.cap="Top words used most by Mum in the chat"}
+
+wordcloud(words = Mrs_Akpayang_Mum_words$words , freq = Mrs_Akpayang_Mum_words$Freq , min.freq = 1,
+          max.words = Inf, random.order = FALSE, rot.per = 0.35, 
+          colors = brewer.pal(8, "Dark2"))
+```
+
+### sentiment clouds
+
+
+How about our individual themes/thoughts inferred from chats, first lets get data group sentiment and from individual members of the group.
+
+
+```{r individuals sentiment data}
+
+sentiment_word.1 <- sentiment_table %>% select(author,word,sentiment) %>% filter(author=="Nsikan Family")  %>%  table() %>% unlist() %>% data.frame() %>% glimpse()
+
+sentiment_word.2 <- sentiment_table %>% select(author,word,sentiment) %>% filter(author=="Mfonakem New")  %>%  table() %>% unlist() %>% data.frame() %>% glimpse()
+
+sentiment_word.3 <- sentiment_table %>% select(author,word,sentiment) %>% filter(author=="Etini Akpayang")  %>%  table() %>% unlist() %>% data.frame() %>% glimpse()
+
+sentiment_word.4 <- sentiment_table %>% select(author,word,sentiment) %>% filter(author=="Diana")  %>%  table() %>% unlist() %>% data.frame() %>% glimpse()
+
+sentiment_word.5 <- sentiment_table %>% select(author,word,sentiment) %>% filter(author=="Lady Diana")  %>%  table() %>% unlist() %>% data.frame() %>% glimpse()
+
+sentiment_word.6 <- sentiment_table %>% select(author,word,sentiment) %>% filter(author=="dad")  %>%  table() %>% unlist() %>% data.frame() %>% glimpse()
+
+sentiment_word.7 <- sentiment_table %>% select(author,word,sentiment) %>% filter(author=="Dad")  %>%  table() %>% unlist() %>% data.frame() %>% glimpse()
+
+sentiment_word.8 <- sentiment_table %>% select(author,word,sentiment) %>% filter(author=="Mrs Akpayang Mum")  %>%  table() %>% unlist() %>% data.frame() %>% glimpse()
+
+```
+
+
+Having obtained all the necessary data set needed, we proceed to plotting the sentiment word cloud 
+
+General sentiment
+
+```{r word cloud for most sentiment word1,fig.cap="Word cloud showing most frequently used sentimental words in the group chat by all users"}
+
+wordcloud(words = sentiment_word$word, freq = sentiment_word$Freq , min.freq = 1,
+          max.words = 100, random.order = FALSE, rot.per = 0.35, 
+          colors = brewer.pal(8, "Dark2"))
+```
+
+Nsikan sentiment
+
+```{r word cloud for most sentiment word2,fig.cap="Word cloud showing most frequently used sentimental words in the group chat by Nsikan"}
+
+wordcloud(words = sentiment_word.1$word, freq = sentiment_word.1$Freq , min.freq = 1,
+          max.words = Inf, random.order = FALSE, rot.per = 0.35, 
+          colors = brewer.pal(8, "Dark2"))
+```
+
+
+Mfonakem sentiment
+
+```{r word cloud for most sentiment word3,fig.cap="Word cloud showing most frequently used sentimental words in the group chat by Mfonakem"}
+
+wordcloud(words = sentiment_word.2$word, freq = sentiment_word.2$Freq , min.freq = 1,
+          max.words = Inf, random.order = FALSE, rot.per = 0.35, 
+          colors = brewer.pal(8, "Dark2"))
+```
+
+
+Etini sentiment
+
+```{r word cloud for most sentiment word4,fig.cap="Word cloud showing most frequently used sentimental words in the group chat by Nsikan"}
+
+wordcloud(words = sentiment_word.3$word, freq = sentiment_word.3$Freq , min.freq = 1,
+          max.words = Inf, random.order = FALSE, rot.per = 0.35, 
+          colors = brewer.pal(8, "Dark2"))
+```
+
+
+Diana line 1 sentiment
+
+```{r word cloud for most sentiment word5,fig.cap="Word cloud showing most frequently used sentimental words in the group chat by Diana line 1"}
+
+wordcloud(words = sentiment_word.4$word, freq = sentiment_word.4$Freq , min.freq = 1,
+          max.words = Inf, random.order = FALSE, rot.per = 0.35, 
+          colors = brewer.pal(8, "Dark2"))
+```
+
+
+Diana line 2
+
+```{r word cloud for most sentiment word6,fig.cap="Word cloud showing most frequently used sentimental words in the group chat by Diana line 2"}
+
+wordcloud(words = sentiment_word.5$word, freq = sentiment_word.5$Freq , min.freq = 1,
+          max.words = Inf, random.order = FALSE, rot.per = 0.35, 
+          colors = brewer.pal(8, "Dark2"))
+```
+
+Dad line 1 sentiment
+
+```{r word cloud for most sentiment word7,fig.cap="Word cloud showing most frequently used sentimental words in the group chat by Dad line 1"}
+
+wordcloud(words = sentiment_word.6$word, freq = sentiment_word.6$Freq , min.freq = 1,
+          max.words = Inf, random.order = FALSE, rot.per = 0.35, 
+          colors = brewer.pal(8, "Dark2"))
+```
+
+Dad line 2 sentiment
+
+```{r word cloud for most sentiment word8,fig.cap="Word cloud showing most frequently used sentimental words in the group chat by Dad line 2"}
+
+wordcloud(words = sentiment_word.7$word, freq = sentiment_word.7$Freq , min.freq = 1,
+          max.words = Inf, random.order = FALSE, rot.per = 0.35, 
+          colors = brewer.pal(8, "Dark2"))
+```
+
+Mum sentiment
+
+```{r word cloud for most sentiment word9,fig.cap="Word cloud showing most frequently used sentimental words in the group chat by Mum"}
+
+wordcloud(words = sentiment_word.8$word, freq = sentiment_word.8$Freq , min.freq = 1,
+          max.words = Inf, random.order = FALSE, rot.per = 0.35, 
+          colors = brewer.pal(8, "Dark2"))
+```

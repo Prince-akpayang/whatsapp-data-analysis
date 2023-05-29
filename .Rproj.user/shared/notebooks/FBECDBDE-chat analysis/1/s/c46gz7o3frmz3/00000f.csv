@@ -1,0 +1,7 @@
+"0",""
+"0","Top_20_most_used_sentiment_words.E<-sentiment_word.E %>% arrange(desc(Freq)) %>% head(20)"
+"0",""
+"0",""
+"0","ggplot(Top_20_most_used_sentiment_words.E,aes(x=reorder(word,Freq),Freq,fill=sentiment))+"
+"0","  geom_col()+xlab(""words"")+"
+"0","  coord_flip()+theme_bw()+ggtitle(""chart of the top 20 sentimental words used by Etini "")"

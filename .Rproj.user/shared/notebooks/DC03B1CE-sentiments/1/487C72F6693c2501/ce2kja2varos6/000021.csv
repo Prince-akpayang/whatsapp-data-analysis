@@ -1,0 +1,18 @@
+"0","glimpse(wat.df)
+"
+"1","Rows: 276"
+"1",""
+"1","
+"
+"1","Columns: 5"
+"1",""
+"1","
+"
+"1","$ time       [3m[38;5;246m<dttm>[39m[23m 2022-12-04 11:59:06, 2022-12-04 12:20:06, 2022-12-04 12:21:06, 2022-12-04 …
+$ author     [3m[38;5;246m<fct>[39m[23m Mfonakem New, Mfonakem New, Mfonakem New, Mfonakem New, Mfonakem New, Mfona…
+$ text       [3m[38;5;246m<chr>[39m[23m ""<Media omitted>"", ""<Media omitted>"", ""<Media omitted>"", ""<Media omitted>"",…
+$ emoji      [3m[38;5;246m<list>[39m[23m <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <N…
+$ emoji_name [3m[38;5;246m<list>[39m[23m <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <NULL>, <N…"
+"1",""
+"1","
+"

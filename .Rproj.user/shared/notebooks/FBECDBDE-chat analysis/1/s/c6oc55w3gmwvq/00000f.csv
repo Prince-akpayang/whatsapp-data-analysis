@@ -1,0 +1,5 @@
+"0","top_20_words1 = whatsapp_data_words %>% arrange(desc(Freq)) %>% head(20)"
+"0",""
+"0","ggplot(top_20_words1,aes(words,Freq,fill=Freq))+"
+"0","  geom_col()+"
+"0","  coord_flip()+theme_bw()+ggtitle(""chart of the top 20 words used by both users "")"

@@ -1,0 +1,120 @@
+---
+title: "Google Data Analytics Capstone Project"
+author: "Etini Akpayang"
+date: "2023-04-7"
+output:
+  html_document:
+    toc: yes
+    keep_md: yes
+---
+
+
+```{r setup chunk}
+knitr::opts_chunk$set(echo = T)
+knitr::opts_chunk$set(eval = T)
+knitr::opts_chunk$set(warning = F)
+knitr::opts_chunk$set(error = F)
+knitr::opts_chunk$set(cache = T)
+options(repos=c(CRAN="http://cran.us.r-project.org"))
+```
+
+## Introduction
+
+
+
+## Loading required data and packages
+
+The following packages will be loaded for this study in case needed.
+
+
+```{r packages}
+library(data.table) # to manipulate tables
+library(tidyverse)  # to manipulate tables and its large dictionary of other manipulation packages including string variables
+library(ggplot2)    # to manipulate plots (grammar of graphics)
+library(lubridate)  # to manipulate dates
+# library(tidytext)
+# library(stopwords)
+# library(tidymodels)
+# library(syuzhet)
+# library(RColorBrewer)
+# library(dplyr)
+# library(stringr)
+# library(igraph)
+# library(tm)
+# require(wordcloud)
+```
+
+## Read the data
+
+Due to the size of the data being about 1GB and my hardward not having the give ability to process this data set smoothly, we will only load the last 3 months of the data that is December, January and February files.
+
+```{r reading the data}
+# Specify the path to the folder where the CSV files are located
+folder_path <- "~/CODE/ANALYSIS/capstone google/last_3"
+
+# Get the file names of CSV files in the folder
+file_names <- list.files(path = folder_path, pattern = ".csv", full.names = TRUE)
+
+# Create an empty list to store the data frames
+data_list <- list()
+
+# Read each CSV file and store the data frames in the list
+for (file_name in file_names) {
+  data <- fread(file_name)
+  data_list[[file_name]] <- data
+}
+
+# Access the data frames from the list
+# For example, to access the data from the first CSV file
+first_data <- data_list[[1]]
+second_data <- data_list[[2]]
+third_data <- data_list[[3]]
+```
+
+### Merge the data set
+
+Having loaded the data files we access its structures to see if they have the same column names (its expected to though)
+
+And then join all three together into one data frame.
+
+```{r merge dataset}
+colnames(first_data)==colnames(second_data)
+colnames(first_data)==colnames(third_data)
+colnames(second_data)==colnames(third_data)
+
+# Since all the columns are equal we merge the data as one
+
+cyl_df <- rbind(first_data,second_data,third_data)
+glimpse(cyl_df)
+```
+### Data cleaning
+
+Having gotten the data frame for the study, a glimpse at the structure reveals some key highlights that need attention.
+
+- We would love the time of the ride given in the **started at/ended** at to be split into **day, date** and **time** as independent columns.
+
+- we would like the to edit some headings like the **member_casual** to be renamed to make it meaningful as **membership_type** and  **rideable_type** to just **ride_type**.
+
+- we would like to change the structures of **rideable_type** and **member_casual** to factors not characters.
+
+- we would also remove unnecessary white-spaces/characters if any.
+
+```{r column renaming}
+colnames(cyl_df)
+
+# renaming to test
+colnames(cyl_df) <- c("ride_id","ride_type","started_at","ended_at","start_station_name", "start_station_id","end_station_name","end_station_id","start_lat","start_lng","end_lat",        "end_lng","membership_type")
+```
+
+
+```{r day_date_time}
+cyl_df <- cyl_df %>% 
+  mutate(ride_day = wday(cyl_df$started_at, label = TRUE, abbr = FALSE),
+         ridedate_started = as.Date(cyl_df$started_at),
+         ridedate_ended = as.Date(cyl_df$started_at),
+         ridetime_started = as.ITime(as.POSIXct(cyl_df$started_at)),
+         ridetime_ended = as.ITime(as.POSIXct(cyl_df$ended_at))) %>%
+  select(-c("started_at","ended_at"))
+  glimpse(cyl_df)
+
+```

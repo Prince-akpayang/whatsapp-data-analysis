@@ -1,0 +1,6 @@
+"0","require(igraph)"
+"0","# Create a directed graph from the WhatsApp data"
+"0","whatsapp_graph <- graph_from_data_frame(whatsapp_data$author, directed = TRUE)"
+"2","Error in graph_from_data_frame(whatsapp_data$author, directed = TRUE) : 
+  the data frame should contain at least two columns
+"

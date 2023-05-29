@@ -1,0 +1,583 @@
+# Load required libraries
+library(tidyverse)
+library(tidytext)
+library(wordcloud)
+library(readr)
+
+
+# install required packages -----------------------------------------------
+
+# install.packages("tidyverse")
+# install.packages("tidytext")
+# install.packages("wordcloud")
+# install.packages("knitr")
+
+
+# Load the data set into a data frame -------------------------------------
+
+data <- read_csv("C:/Users/USER/ETINI AKPAYANG/Documents/CODE/ANALYSIS/sentiment folder/sentimentanals/WhatsApp Chat with De Akpayang's💙💙.txt",col_names = F)
+
+
+# clean whatapp data ------------------------------------------------------
+
+
+# Load the data set into a data frame
+data <- read.table("C:/Users/USER/ETINI AKPAYANG/Documents/CODE/ANALYSIS/sentiment folder/sentimentanals/WhatsApp Chat with De Akpayang's💙💙.txt", sep = "\t", header = FALSE,
+                   stringsAsFactors = FALSE)
+
+# Give the columns meaningful names
+colnames(data) <- c("date", "time", "author", "message")
+
+# Convert date and time columns to Date and POSIXct objects, respectively
+data$date <- as.Date(data$date, format = "%m/%d/%y")
+data$time <- as.POSIXct(strptime(data$time, format = "%I:%M %p"))
+
+# Remove unwanted characters from the message column
+data$message <- gsub("[[:punct:]]", "", data$message)
+data$message <- gsub("[[:digit:]]", "", data$message)
+data$message <- gsub("[[:cntrl:]]", "", data$message)
+data$message <- gsub("^[[:space:]]+|[[:space:]]+$", "", data$message)
+data$message <- tolower(data$message)
+
+# Remove messages that are empty or only contain white space
+data <- data %>%
+  filter(nchar(message) > 0)
+
+# Save the cleaned data to a new file
+write.table(data, file = "whatsapp_data_clean.txt", sep = "\t",
+            row.names = FALSE, quote = FALSE)
+
+# Clean and preprocess the data -------------------------------------------
+
+data_clean <- data %>%
+  unnest_tokens(word, message) %>%
+  anti_join(stop_words)
+
+# Perform sentiment analysis using the "bing" lexicon
+data_sentiment <- data_clean %>%
+  inner_join(get_sentiments("bing"))
+
+# Create a word cloud
+wordcloud(words = data_sentiment$word, freq = data_sentiment$freq, min.freq = 2,
+          max.words = 100, random.order = FALSE, rot.per = 0.35, 
+          colors = brewer.pal(8, "Dark2"))
+
+
+# CLEAN DATA --------------------------------------------------------------
+
+#NEW CLEANIN CODE
+# Whatsapp's data visualization functions and data cleaning
+# by: Rodrigo Hernández Mota
+# file name: functions_whatsapp.R
+# V.1.0.0
+
+library(tibble)
+library(tidyr)
+
+# palette_colors ----------------------------------------------------------
+# This function returns a vector of colours (character- HEX number)
+# Variables: 
+#     x: character that should specify the type of palette.
+#     y: numeric length 1 that indicates the length of the vector of
+#     colors desired.
+#     select: the position of the different color in "usuario".
+palette_colors <- function(x, y = 3, select = 1){
+  # check of variable type
+  if (is.character(x) != 1) 
+    stop('x parameter should be a character.')
+  
+  # available palettes 
+  if(x == "facebook")
+    pal <- c("#3b5998", "	#8b9dc3", "#dfe3ee")
+  if(x == "google")
+    pal <- c("#008744", "#0057e7", "#d62d20", "#ffa700")
+  if(x == "griff")
+    pal <- c("#740001", "#ae0001", "#eeba30", "#d3a625", "#000000")
+  if(x == "pastel")
+    pal <- c("#1b85b8", "#5a5255", "#559e83", "#ae5a41", "#c3cb71")
+  if(x == "usuario"){
+    pal <- rep("dark gray",y); pal[select] <- "dark red" }
+  if(x == "todos")
+    pal <- c("#3b5998", "#d62d20", "#008744", "#0057e7", "#ffa700",
+             "#740001", "#ae0001", "	#eeba30", "#d3a625", "#8b9dc3",
+             "#dfe3ee")
+  
+  # check of length
+  if(length(pal) < y)
+    stop('y is grater than the length of the vector of color desired')
+  return(pal[1:y])
+}
+
+# count_length ------------------------------------------------------------
+# This function counts the number of letters in a word
+# Variables:
+#     word: character, i.e. a word.
+count_length <- function(word){
+  # check of variable type
+  if (is.character(word) != 1) 
+    stop('word parameter should be a character.')
+  else
+    length(unlist(strsplit(word, "")))
+}
+
+# nl  ---------------------------------------------------------------------
+# Auxiliary function. Paste the elements of a vector of length 2.
+# Variables:
+#     vect: vector of length 2
+nl <- function(vect){
+  if (is.vector(vect))
+    if (length(vect) == 2)
+      paste(vect[1], vect[2], sep = "")
+}
+
+# other_stuff -------------------------------------------------------------
+# Given the filter of variable 1 from a dataset, obtain variable 2
+# as "all what is not variable 1". 
+# Variables:
+# 
+other_stuff <- function(raw_data, var1_index){
+  other_index <- c(1:length(raw_data)) * (var1_index == F)
+  other_index <- other_index[other_index != 0]
+  other_value <- numeric()
+  other_value[1] <- raw_data[other_index[1]]
+  j <- other_index[1]; k <- 1; tx <- ""
+  for(i in other_index[2:length(other_index)]){
+    if(i - j == 1)
+      other_value[k] <- paste(other_value[k], raw_data[i])
+    else{
+      k <- k + 1
+      other_value[k] <- raw_data[i]
+    }
+    j <- i
+  }
+  return(other_value)
+}
+
+# clean_data --------------------------------------------------------------
+# Function for cleaning data of a .txt file from Whatsapp
+# Variables:
+#     dataset_txt: available .txt files from whatsapp in directory
+#     choice: position of the file of interest
+clean_data <- function(dataset_txt, specif = F){
+  
+  
+  # read whatsapp .txt data 
+  raw_data <- read.table(dataset_txt, header = F, sep = "\t",
+                         stringsAsFactors = F, quote = "")
+  raw_data <- apply(raw_data, 1, as.character)
+  raw_data <- unlist(lapply(raw_data, strsplit, split = "\n"))
+  
+  # So now we have a vector "character" with each message by time.
+  # general structure:   <date>, <time> - <name>: <text>
+  # possible variations: <data>, <time> - <name> <action>
+  # possible variations: <text> *cames from prev. message
+  
+  
+  # Separate by comma, as an attempt to take out the date.
+  raw_data   <- lapply(raw_data, strsplit, split = ",")
+  # unlist to work with a vector.
+  raw_data   <- unlist(raw_data)
+  # identify the position of dates 
+  date_index <- sapply(X = raw_data,
+                       FUN = function(y){
+                         z <- sum(
+                           c(
+                             is(
+                               tryCatch(as.Date(y), error = function(e) e),
+                               "error"
+                             ),
+                             is.na(y)
+                           )
+                         ) == 0
+                         return(z)
+                       })
+  
+  # get value of dates and other in a vector.
+  # because of the fact that the text of the messages was
+  # also separated by comma, we will have to use a for loop
+  # (this is all done in the function).
+  date_value <- raw_data[date_index]
+  other <- other_stuff(raw_data, date_index)
+  date  <- as.Date(date_value)
+  
+  # Check-up
+  if(length(date) != length(other))
+    stop("Problem between _dates_ and _other_: see function")
+  
+  
+  aux_df      <- data_frame(Date = date, Other = other)
+  unique_days <- unique(aux_df$Date)
+  
+  # If the data you are using is too large, the code will
+  # be very slow. For this reason, it is decided to make
+  # a random sample of the data for those cases in which
+  # we are dealing with a large dataset. 
+  # Samples are going to be taken according to the days. 
+  
+  n <- length(unique_days)
+  if(n > 120 | sqrt(nrow(aux_df)) > 120){
+    sample_size <- floor(sqrt(n) + n / 10)
+    sample_index <- floor((n-1) * runif(sample_size) + 1)
+    sample_dates <- unique_days[sample_index]
+    sample_data <- data_frame()
+    for(i in sample_dates){
+      sample_data <- rbind(sample_data, aux_df[aux_df$Date == i, ])
+    }
+    date <- sample_data$Date
+    other <- as.character(sample_data$Other)
+  }
+  
+  # By this time the vector "other" might look like
+  # general structure:   <time> - <name>: <text>
+  # possible variations: <time> - <name> <action>
+  # separate by dash, an attempt to take out the time.
+  otherl <- unlist(lapply(other,strsplit, split = "-"))
+  
+  time_index <- sapply(otherl, function(x){
+    a <- strsplit(gsub(" ", "", x), ":")[[1]]
+    if(length(a) == 2){
+      sum(is.na(suppressWarnings(as.numeric(a)))) == 0
+    } else { FALSE }})
+  time_value <- otherl[time_index]
+  
+  # Check up
+  if(length(date) != length(time_value))
+    stop("Problem between _dates_ and _time_: see function")
+  
+  # Join time and date and create variable with "other" data.
+  general_time <- apply(cbind(as.character(date), time_value), 1, nl)
+  time  <- strptime(general_time, paste("%Y-%m-%d"," %H:%M ", sep = ""))
+  other <- other_stuff(otherl, time_index)
+  
+  # Check up
+  if(length(time) != length(other))
+    stop("Problem between _time_ and _other_: see function")
+  
+  # Now the vector "other" might look like
+  # general structure: <name>: <text>
+  # possible variations: <name> <action>
+  # Spearate by : an attempt to take out the user.
+  otherl <- lapply(other,strsplit, split = ":")
+  
+  # TO DO: re-wirte this code avoiding for loops.
+  other <- numeric()
+  user  <- numeric()
+  for(i in 1:length(otherl)){
+    n <- length(otherl[[i]][[1]])
+    user[i] <- gsub(" ","",otherl[[i]][[1]][1])
+    for(j in 2:n){
+      if(j == 2) 
+        tex <- otherl[i][[1]][[1]][2]
+      else 
+        tex <- paste(tex, otherl[i][[1]][[1]][j], sep = ":")
+    }
+    other[i] <- tex
+  }
+  
+  # Check up
+  if(length(time) != length(other))
+    stop("Problem between _time_ and _other_ (name): see function")
+  
+  # We have the following variables:
+  # date, time, user, other.
+  # The "other" variable represents the message send. 
+  # Separate by " " an attempt to word identification.
+  # Challenges: empty spaces, punctuation symbols, NAs.
+  otherl <- lapply(other, strsplit, split = " ")
+  
+  # TO DO: re-wirte this code avoiding for loops.
+  m     <- 1
+  n_max <- 0
+  words <- list()
+  pos   <- numeric()
+  for(i in 1:length(otherl)){
+    n <- length(otherl[[i]][[1]])
+    w <- numeric()
+    k <- 1
+    for(j in 1:length(otherl[[i]][[1]])){
+      if(otherl[[i]][[1]][j] != "" & otherl[[i]][[1]][j] != " "){
+        w[k] <- gsub(pattern = '[[:punct:]]',
+                     replacement = "",
+                     otherl[[i]][[1]][j])
+        k <- k + 1
+      }
+    }
+    l <- 1
+    wf <- numeric()
+    for(j in 1:length(w)){
+      if(length(w) != 0){
+        if(w[j] != ""){
+          wf[l] <- w[j]
+          l <- l + 1
+        }
+      }
+    }
+    if(l != 1){
+      pos[m] <- i
+      words[[m]] <- wf
+      n_act <- length(words[[m]])
+      if(n_act > n_max)
+        n_max <- n_act
+      m <- m + 1
+    }
+  }
+  
+  # TO DO: re-wirte this code avoiding for loops.
+  by_words <- numeric()
+  gen_word <- numeric()
+  for(i in 1:length(words)){
+    n <- length(words[[i]])
+    v <- c(words[[i]], rep(NA,n_max + 1 - n))
+    gen_word <- c(gen_word, words[[i]])
+    if( i == 1)
+      by_words <- v
+    else 
+      by_words <- rbind(by_words, v)
+  }
+  
+  # Now we create a dataframe for the words per message send
+  names(by_words)    <- as.character(1:ncol(by_words))
+  rownames(by_words) <- as.character(1:nrow(by_words))
+  by_words <- as_data_frame(by_words)
+  
+  # here we unify all the variables into a single data_frame
+  obs <- data_frame(Date = date, Time = as.POSIXct(time), Users = user)
+  obs <- obs[pos, ]
+  obs <- as_data_frame(cbind(obs, by_words))
+  
+  # determine the frequency of some words
+  unique_words <- unique(gen_word)
+  cont_words   <- numeric()
+  aux_df <- data_frame(Words = gen_word)
+  for(i in 1:length(unique_words)){
+    cont_words[i] <- dim(aux_df[aux_df$Words == unique_words[i], ])[1]
+  }
+  
+  word_count <- data_frame(Words = unique_words,
+                           Count = as.numeric(cont_words))
+  # Change the name of "media omitted" to <media>
+  # Add relative and comulative frequency
+  new_row <- c("<media>", as.character(
+    word_count[word_count$Words == "omitted", "Count"]))
+  word_count       <- rbind(word_count, new_row)
+  word_count$Count <- as.numeric(word_count$Count) 
+  word_count <- word_count[order(word_count$Count,decreasing = T), ]
+  word_count <- word_count[word_count$Words != "Media" & word_count$Words != "omitted",]
+  word_count$Rel <- 100 * word_count$Count / sum(word_count$Count)
+  Acum    <- numeric()
+  Acum[1] <- as.numeric(word_count$Rel[1])
+  for(i in 2:length(word_count$Rel)){
+    Acum[i] <- Acum[i-1] + word_count$Rel[i]
+  }
+  
+  word_count$Acum <- Acum
+  
+  # Fix some bugs in users
+  unique_us <- as.character(unique(obs$Users))
+  
+  # Start the clock
+  #ptm <- proc.time()
+  aux_df    <- data_frame()
+  for(i in unique_us){
+    filr <- as.character(i)
+    filr <- paste(filr,"txt_filtr", sep = "")
+    filr <- strsplit(filr, "added")
+    if(length(filr[[1]]) == 1)
+      filr <- strsplit(filr[[1]], "changedthis")
+    if(length(filr[[1]]) == 1)
+      filr <- strsplit(filr[[1]], "left")
+    if(length(filr[[1]]) == 1)
+      filr <- strsplit(filr[[1]], "-NA")
+    if(length(filr[[1]]) == 1)
+      filr <- strsplit(filr[[1]], "createdg")
+    if(length(filr[[1]]) == 1){
+      aux_df <- rbind(aux_df,
+                      obs[obs$Users == i, ])
+    }
+  }
+  obs       <- aux_df
+  unique_us <- as.character(unique(obs$Users))
+  # Stop the clock
+  #proc.time() - ptm
+  
+  # remove na's
+  avoid_index <- is.na(obs$Date) == F
+  obs <- obs[avoid_index, ]
+  
+  # DONT'T
+  obs <- specific_func(specif, unique_us, obs)
+  
+  # Determine number of words and messages per day
+  k     <- 1
+  dates <- unique(obs$Date)
+  messages_users <- data_frame()
+  words_users    <- data_frame()
+  
+  for(i in dates){
+    for(j in unique_us){
+      messages_users[k, j] <- dim(obs[obs$Users == j & obs$Date == i, "Users"])[1]
+      words_users[k, j] <- sum(is.na(obs[obs$Users == j & obs$Date == i, ]) == F) - 3
+    }
+    k <- k + 1
+  }
+  
+  messages_users$Date <- dates
+  messages_users      <- gather(messages_users, User, Messages, -Date)
+  
+  words_users$Date <- dates
+  words_users      <- gather(words_users, User, Words, -Date)
+  
+  # Word and word's length
+  word_count$Word_lenght <- sapply(word_count$Words,count_length)
+  word_count$id_nl <- as.factor(apply(
+    word_count[,c("Count", "Word_lenght")], 1, nl))
+  order_id <- word_count[order(word_count$Count), "id_nl"]
+  levels(word_count$id_nl) <- order_id
+  
+  # Words and hour 
+  
+  tidy_obs <- na.omit(gather(obs, place_on, Word,
+                             -Date, -Time, -Users))
+  tidy_obs <- na.omit(tidy_obs)
+  hours_vector <- sapply(tidy_obs$Time, FUN = function(x)
+    as.numeric(format(strptime(x, "%Y-%m-%d %H:%M:%S"), "%H")))
+  tidy_obs$Hour  <- hours_vector
+  words_hour   <- tidy_obs[,c("Time","Hour", "Users", "Word")]
+  
+  
+  k     <- 1
+  time <- obs$Time 
+  hours <- sapply(time, FUN = function(x)
+    as.numeric(format(strptime(x, "%Y-%m-%d %H:%M:%S"), "%H")))
+  aux_df <- obs
+  aux_df$Hours <- hours
+  hours_un <- unique(hours)
+  freq_hour    <- data_frame()
+  
+  for(i in hours_un){
+    for(j in unique_us){
+      freq_hour[k, j] <- sum(is.na(aux_df[aux_df$Users == j & aux_df$Hours == i, ]) == F) - 4
+      if(freq_hour[k, j] < 0)
+        freq_hour[k, j] <- 0
+    }
+    k <- k + 1
+  }
+  freq_hour$Hours <- hours_un
+  freq_hour      <- gather(freq_hour, User, Words, -Hours)
+  
+  # We have the following data_frames
+  # obs: observations
+  # tidy_obs: like obs but tidy
+  # word_count: word count
+  # messages_users: number of messages per user
+  # words_users: number of words per user
+  # words_hour: words said per hour
+  # freq_hour: use of words per hour
+  
+  clean_dataset <- list()
+  clean_dataset[[1]] <- obs
+  clean_dataset[[2]] <- tidy_obs
+  clean_dataset[[3]] <- word_count
+  clean_dataset[[4]] <- messages_users
+  clean_dataset[[5]] <- words_users
+  clean_dataset[[6]] <- words_hour
+  clean_dataset[[7]] <- freq_hour
+  names(clean_dataset) <- c("observations", "tidy_obs", "word_count",
+                            "messages_users", "words_users",
+                            "words_hour", "freq_hour")
+  
+  return(clean_dataset)
+}
+
+# specific_func -----------------------------------------------------------
+# Specific_func, just to do a specific job
+
+specific_func <- function(specif, unique_us, obs){
+  if(specif){
+    if(specif == 2){
+      if(unique_us[1] == "Radrigo"){
+        new_users <- c("Rodrigo", "Ana_Teresa")
+      }else{
+        new_users <- c("Ana_Teresa", "Rodrigo")
+      }
+    }
+    if(specif == 1){
+      
+      unique_us <- unique(obs$Users)
+      nomb <- c("Fernanda", "Amauri", "Rodrigo", "Alicia", "Webster", "Vírgen", 
+                "Yolanda", "Raúl", "Dulce", "Daniela", "Ceballos", "+5213322555291")
+      ped <- c("ndaA", "uriG", "adrig", "lic", "sW", "sV",
+               "ol", "lR", "eM", "yG", "oC", "32255")
+      new_users <- numeric()
+      for(i in 1:length(unique_us)){
+        flag <- 0; j <- 1
+        while(flag == 0){
+          if(length(strsplit(unique_us[i], ped[j])[[1]]) == 2){
+            new_users[i] <- nomb[j]
+            flag <- 1
+          }
+          j <- j + 1
+        }
+      }
+    }
+    Users <- numeric()
+    for(i in 1:length(obs$Users)){
+      j <- 1
+      flag <- 0
+      while(flag == 0){
+        if(obs$Users[i] == unique_us[j]){
+          Users[i] <- new_users[j]
+          flag <- 1
+        }
+        j <- j + 1
+      }
+    }
+    Users <- factor(Users)
+    obs$Users <- Users
+  }
+  return(obs)
+}
+
+
+# word_filter -------------------------------------------------------------
+# filters the usual words in a given language.
+
+word_filter <- function(data, lang = "spanish"){
+  if(lang == "spanish"){
+    excl <- c("Si", "si", "Sí","sí", "No", "no", "Que", "que", "Quien",
+              "quien", "Donde", "donde", "A", "a", "De", "de",
+              "La", "la", "El", "el", "En", "en", "Y", "y", "Se", 
+              "se", "Es", "es", "Lo", "lo", "Con", "con", "Me", "me",
+              "Por", "por", "Te", "te", "Un", "un", "sÃ", "SÃ", "Ya",
+              "ya", "Tu", "tu", "Como", "como", "Las", "las", "más", "mas",
+              "mÃs", "Los", "los", "Para", "para", "mi", "eso", "una", "unas",
+              "Pero", "pero", "Le", "le", "Del", "del", "Haha", "jaja", "Jajaja",
+              "Jajajaja", "al", "estÃ", "o", "bien", "su", "Ây", "esta", "estoy",
+              "haha", "<media>", "va", "algo", "quÃ", "son", "hace", "dÃa",
+              "Jajajajaja", "porque", "asÃ", "tÃ", "les", "hasta", "cosas",
+              "ver", "voy", "Jaja", "cierto", "muy", "hay", "tengo", "entonces",
+              "he", "tus", "dos", "Pues", "ni", "cuenta", "tambiÃn", "habÃa", "ese",
+              "ha", "ti", "estÃn", "Âque", "tienes", "haciendo", "AsÃ", "pues", "bueno",
+              "Jajaa", "Ni", "hecho", "puedo", "Yo", "yo", "Ok", "todo", "Okay", "nada",
+              "cuando", "SÃlo", "dÃas", "maÃana", "Buenos", "ðŸ˜˜", "ir", "tal", "Voy",
+              "Porque", "casa", "verdad", "vas", "pronto", "sÃlo", "Estoy", "Gracias",
+              "estar", "mis", "avisas", "digo", "haces", "Esta", "noches")
+    word_filter <- data
+    for(i in excl){
+      word_filter <- word_filter[word_filter$Words != i, ]
+    }
+    return(word_filter)
+  }
+  
+  
+}
+
+
+
+dataset_txt<-"C:/Users/USER/ETINI AKPAYANG/Documents/CODE/ANALYSIS/sentiment folder/sentimentanals/WhatsApp Chat with De Akpayang's💙💙.txt"
+k<-list(clean_data(dataset_txt))
+k
+
+
+
+write.csv( k[[1]]$observations,"whatappdata.csv")

@@ -1,0 +1,6 @@
+"0","require(igraph)"
+"0","# Create a directed graph from the WhatsApp data"
+"0","whatsapp_graph <- graph_from_data_frame(whatsapp_data, directed = TRUE)"
+"0",""
+"0","# Plot the network"
+"0","plot(whatsapp_graph, vertex.label = V(whatsapp_graph)$author)"
